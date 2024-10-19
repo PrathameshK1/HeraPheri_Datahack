@@ -11,3 +11,7 @@ onnx==1.16.1
 qdrant-client
 seaborn
 matplotlib
+numpy
+pandas
+plotly
+vega_datasets

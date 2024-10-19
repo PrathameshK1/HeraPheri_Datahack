@@ -13,12 +13,89 @@ import json
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import altair as alt
+from vega_datasets import data
 
 # Function to display the PDF of a given file
 def displayPDF(file):
     base64_pdf = base64.b64encode(file.read()).decode('utf-8')
     pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
     st.markdown(pdf_display, unsafe_allow_html=True)
+
+
+# Visualization functions
+def generate_dummy_data():
+    np.random.seed(42)
+    return pd.DataFrame({
+        'Category': np.random.choice(['Network', 'Application', 'Data', 'Physical'], 100),
+        'Risk_Score': np.random.randint(1, 101, 100),
+        'Impact_Score': np.random.randint(1, 101, 100),
+        'Vulnerability_Type': np.random.choice(['SQL Injection', 'XSS', 'CSRF', 'Buffer Overflow', 'Misconfiguration'], 100),
+        'Detection_Time': np.random.randint(1, 1001, 100),
+        'Resolution_Time': np.random.randint(1, 2001, 100),
+        'Date': pd.date_range(start='2023-01-01', periods=100),
+    })
+
+def create_risk_impact_chart(data):
+    fig = px.scatter(data, x='Risk_Score', y='Impact_Score', color='Category',
+                     size='Risk_Score', hover_data=['Vulnerability_Type'],
+                     labels={'Risk_Score': 'Risk Score', 'Impact_Score': 'Impact Score'},
+                     title='Risk vs Impact Analysis')
+    fig.update_layout(height=500)
+    return fig
+
+def create_vulnerability_distribution(data):
+    vuln_count = data['Vulnerability_Type'].value_counts()
+    fig = go.Figure(data=[go.Pie(labels=vuln_count.index, values=vuln_count.values, hole=.3)])
+    fig.update_layout(title_text='Vulnerability Distribution', height=500)
+    return fig
+
+def create_detection_resolution_chart(data):
+    fig = make_subplots(rows=1, cols=2, subplot_titles=('Detection Time', 'Resolution Time'))
+    fig.add_trace(go.Box(y=data['Detection_Time'], name='Detection Time'), row=1, col=1)
+    fig.add_trace(go.Box(y=data['Resolution_Time'], name='Resolution Time'), row=1, col=2)
+    fig.update_layout(height=500, title_text="Detection and Resolution Time Analysis")
+    return fig
+
+def create_trend_chart(data):
+    daily_risks = data.groupby('Date')['Risk_Score'].mean().reset_index()
+    chart = alt.Chart(daily_risks).mark_line().encode(
+        x='Date:T',
+        y='Risk_Score:Q',
+        tooltip=['Date', 'Risk_Score']
+    ).properties(
+        width=700,
+        height=300,
+        title='Risk Score Trend Over Time'
+    ).interactive()
+    return chart
+
+def create_heatmap(data):
+    heatmap_data = data.pivot_table(index='Category', columns='Vulnerability_Type', values='Risk_Score', aggfunc='mean')
+    fig = px.imshow(heatmap_data, labels=dict(color="Risk Score"),
+                    title="Risk Heatmap: Category vs Vulnerability Type")
+    fig.update_layout(height=500)
+    return fig
+
+def create_3d_risk_bubble(data):
+    fig = px.scatter_3d(
+        data, 
+        x='Risk_Score', 
+        y='Impact_Score', 
+        z='Resolution_Time', 
+        color='Category',
+        size='Risk_Score',
+        hover_data=['Vulnerability_Type'],
+        title='3D Risk Analysis: Risk vs Impact vs Resolution Time',
+        labels={'Risk_Score': 'Risk Score', 'Impact_Score': 'Impact Score', 'Resolution_Time': 'Resolution Time'}
+    )
+    fig.update_layout(height=700)
+    return fig
+
+
 
 # Initialize session_state variables
 if 'temp_pdf_path' not in st.session_state:
@@ -172,53 +249,49 @@ elif choice == "📧 Contact":
     For urgent security concerns, please contact our 24/7 hotline.
     """)
 
-
 elif choice == "📈 Visualisation":
-    st.title("📈 Visualisation")
+    st.title("📊 Advanced Cybersecurity Dashboard")
     st.markdown("---")
-    
 
     # Generate dummy data
-    np.random.seed(42)
-    data = pd.DataFrame({
-        'Category': np.random.choice(['A', 'B', 'C', 'D'], 100),
-        'Value1': np.random.randn(100) * 100,
-        'Value2': np.random.randn(100) * 50 + 20,
-        'Value3': np.random.randint(1, 100, 100)
-    })
+    data = generate_dummy_data()
 
-    # Bar Chart
-    st.markdown("### Bar Chart")
-    bar_data = data['Category'].value_counts().reset_index()
-    bar_data.columns = ['Category', 'Count']
-    st.bar_chart(bar_data.set_index('Category'))
+    # Sidebar for filtering
+    st.sidebar.header("Filters")
+    selected_categories = st.sidebar.multiselect("Select Categories", data['Category'].unique(), default=data['Category'].unique())
+    date_range = st.sidebar.date_input("Select Date Range", [data['Date'].min(), data['Date'].max()])
 
-    # Line Chart
-    st.markdown("### Line Chart")
-    line_data = data[['Value1', 'Value2']].cumsum()
-    st.line_chart(line_data)
+    # Apply filters
+    filtered_data = data[
+        (data['Category'].isin(selected_categories)) &
+        (data['Date'] >= pd.Timestamp(date_range[0])) &
+        (data['Date'] <= pd.Timestamp(date_range[1]))
+    ]
 
-    # Area Chart
-    st.markdown("### Area Chart")
-    st.area_chart(line_data)
+    # Top KPIs
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Average Risk Score", f"{filtered_data['Risk_Score'].mean():.2f}")
+    col2.metric("Average Impact Score", f"{filtered_data['Impact_Score'].mean():.2f}")
+    col3.metric("Total Vulnerabilities", len(filtered_data))
+    col4.metric("Avg. Resolution Time (hrs)", f"{filtered_data['Resolution_Time'].mean() / 60:.2f}")
 
-    # Scatter Plot
-    st.markdown("### Scatter Plot")
-    fig, ax = plt.subplots()
-    sns.scatterplot(data=data, x='Value1', y='Value2', hue='Category', ax=ax)
-    st.pyplot(fig)
+    # Risk vs Impact Interactive Scatter Plot
+    st.plotly_chart(create_risk_impact_chart(filtered_data), use_container_width=True)
 
-    # Histogram
-    st.markdown("### Histogram")
-    fig, ax = plt.subplots()
-    sns.histplot(data['Value3'], bins=20, kde=True, ax=ax)
-    st.pyplot(fig)
+    # Vulnerability Distribution Pie Chart
+    st.plotly_chart(create_vulnerability_distribution(filtered_data), use_container_width=True)
 
-    # Box Plot
-    st.markdown("### Box Plot")
-    fig, ax = plt.subplots()
-    sns.boxplot(data=data, x='Category', y='Value1', ax=ax)
-    st.pyplot(fig)
+    # Detection and Resolution Time Box Plots
+    st.plotly_chart(create_detection_resolution_chart(filtered_data), use_container_width=True)
+
+    # Risk Score Trend Chart
+    st.altair_chart(create_trend_chart(filtered_data), use_container_width=True)
+
+    # Risk Heatmap
+    st.plotly_chart(create_heatmap(filtered_data), use_container_width=True)
+
+    # Use the function to create the 3D plot
+    st.plotly_chart(create_3d_risk_bubble(filtered_data), use_container_width=True)
 
 # Footer
 st.markdown("---")
