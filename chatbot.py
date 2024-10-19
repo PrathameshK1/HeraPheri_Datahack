@@ -10,11 +10,6 @@ from langchain.chains import RetrievalQA
 import streamlit as st
 from huggingface_hub import snapshot_download
 from transformers import AutoModel, AutoTokenizer
-import json
-from typing import List, Dict
-import PyPDF2
-import docx
-import re
 
 class ChatbotManager:
     def __init__(
@@ -72,10 +67,8 @@ If you don't know the answer, just say that you don't know, don't try to make up
 
 Context: {context}
 Question: {question}
-Previous Responses: {previous_responses}
 
 Only return the helpful answer. Answer must be detailed and well explained.
-If necessary, ask follow-up questions to gather more information.
 Helpful answer:
 """
 
@@ -94,7 +87,7 @@ Helpful answer:
         # Initialize the prompt
         self.prompt = PromptTemplate(
             template=self.prompt_template,
-            input_variables=['context', 'question', 'previous_responses']
+            input_variables=['context', 'question']
         )
 
         # Initialize the retriever
@@ -113,20 +106,6 @@ Helpful answer:
             verbose=False
         )
 
-        # Initialize conversation history
-        self.conversation_history = []
-
-        # Initialize compliance standards
-        self.compliance_standards = {
-            "GDPR": self.load_compliance_standard("gdpr.json"),
-            "HIPAA": self.load_compliance_standard("hipaa.json")
-        }
-
-    def load_compliance_standard(self, filename: str) -> Dict:
-        """Load compliance standard from a JSON file."""
-        with open(filename, 'r') as f:
-            return json.load(f)
-
     def get_response(self, query: str) -> str:
         """
         Processes the user's query and returns the chatbot's response.
@@ -138,105 +117,8 @@ Helpful answer:
             str: The chatbot's response.
         """
         try:
-            previous_responses = "\n".join(self.conversation_history)
-            response = self.qa.run({"question": query, "previous_responses": previous_responses})
-            self.conversation_history.append(response)
-
-            # Check for follow-up questions
-            follow_up = self.generate_follow_up(response)
-            if follow_up:
-                response += f"\n\nFollow-up question: {follow_up}"
-
-            return response
+            response = self.qa.run(query)
+            return response  # 'response' is now a string containing only the 'result'
         except Exception as e:
             st.error(f"⚠️ An error occurred while processing your request: {e}")
             return "⚠️ Sorry, I couldn't process your request at the moment."
-
-    def generate_follow_up(self, response: str) -> str:
-        """Generate a follow-up question based on the response."""
-        # Implement logic to generate follow-up questions
-        # This is a placeholder implementation
-        if "MFA" in response and "not implemented" in response.lower():
-            return "What other access control mechanisms do you have in place?"
-        return ""
-
-    def analyze_document(self, file) -> str:
-        """Analyze uploaded document for vulnerabilities and compliance gaps."""
-        text = self.extract_text(file)
-        analysis = self.llm.generate("Analyze the following text for potential security vulnerabilities and compliance gaps:\n\n" + text)
-        return analysis
-
-    def extract_text(self, file) -> str:
-        """Extract text from various file formats."""
-        if file.name.endswith('.pdf'):
-            return self.extract_from_pdf(file)
-        elif file.name.endswith('.docx'):
-            return self.extract_from_docx(file)
-        elif file.name.endswith('.txt'):
-            return file.read().decode('utf-8')
-        else:
-            raise ValueError("Unsupported file format")
-
-    def extract_from_pdf(self, file) -> str:
-        """Extract text from PDF file."""
-        pdf_reader = PyPDF2.PdfReader(file)
-        text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text()
-        return text
-
-    def extract_from_docx(self, file) -> str:
-        """Extract text from DOCX file."""
-        doc = docx.Document(file)
-        return "\n".join([para.text for para in doc.paragraphs])
-
-    def generate_report(self) -> str:
-        """Generate a comprehensive security assessment report."""
-        report = "Security Assessment Report\n\n"
-        
-        # Analyze conversation history
-        for response in self.conversation_history:
-            vulnerabilities = self.identify_vulnerabilities(response)
-            report += f"Identified Vulnerabilities:\n{vulnerabilities}\n\n"
-            
-            recommendations = self.generate_recommendations(vulnerabilities)
-            report += f"Recommendations:\n{recommendations}\n\n"
-        
-        # Check compliance
-        compliance_issues = self.check_compliance()
-        report += f"Compliance Issues:\n{compliance_issues}\n\n"
-        
-        return report
-
-    def identify_vulnerabilities(self, response: str) -> List[str]:
-        """Identify vulnerabilities from the response."""
-        # Implement logic to identify vulnerabilities
-        # This is a placeholder implementation
-        vulnerabilities = []
-        if "MFA not implemented" in response:
-            vulnerabilities.append("Lack of Multi-Factor Authentication")
-        return vulnerabilities
-
-    def generate_recommendations(self, vulnerabilities: List[str]) -> List[str]:
-        """Generate recommendations based on identified vulnerabilities."""
-        # Implement logic to generate recommendations
-        # This is a placeholder implementation
-        recommendations = []
-        if "Lack of Multi-Factor Authentication" in vulnerabilities:
-            recommendations.append("Implement Multi-Factor Authentication for all user accounts")
-        return recommendations
-
-    def check_compliance(self) -> List[str]:
-        """Check compliance against loaded standards."""
-        compliance_issues = []
-        for standard, requirements in self.compliance_standards.items():
-            for requirement in requirements:
-                if not self.check_requirement(requirement):
-                    compliance_issues.append(f"{standard}: {requirement}")
-        return compliance_issues
-
-    def check_requirement(self, requirement: str) -> bool:
-        """Check if a specific compliance requirement is met."""
-        # Implement logic to check if the requirement is met
-        # This is a placeholder implementation
-        return any(requirement.lower() in response.lower() for response in self.conversation_history)
