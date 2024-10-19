@@ -10,6 +10,9 @@ from chatbot import ChatbotManager
 import pandas as pd
 from io import StringIO
 import json
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 # Function to display the PDF of a given file
 def displayPDF(file):
@@ -41,7 +44,7 @@ with st.sidebar:
     st.image("logo.png", use_column_width=True)
     st.markdown("### 🛡️ Cybersecurity Assessment Bot")
     st.markdown("---")
-    menu = ["🏠 Home", "📊 Assessment", "📄 Documentation Analysis", "📝 Report", "📧 Contact"]
+    menu = ["🏠 Home", "📊 Assessment", "📄 Documentation Analysis", "📝 Report", "📈 Visualisation", "📧 Contact"]
     choice = st.selectbox("Navigate", menu)
 
 # Home Page
@@ -169,6 +172,55 @@ elif choice == "📧 Contact":
     For urgent security concerns, please contact our 24/7 hotline.
     """)
 
+
+elif choice == "📈 Visualisation":
+    st.title("📈 Visualisation")
+    st.markdown("---")
+    
+
+    # Generate dummy data
+    np.random.seed(42)
+    data = pd.DataFrame({
+        'Category': np.random.choice(['A', 'B', 'C', 'D'], 100),
+        'Value1': np.random.randn(100) * 100,
+        'Value2': np.random.randn(100) * 50 + 20,
+        'Value3': np.random.randint(1, 100, 100)
+    })
+
+    # Bar Chart
+    st.markdown("### Bar Chart")
+    bar_data = data['Category'].value_counts().reset_index()
+    bar_data.columns = ['Category', 'Count']
+    st.bar_chart(bar_data.set_index('Category'))
+
+    # Line Chart
+    st.markdown("### Line Chart")
+    line_data = data[['Value1', 'Value2']].cumsum()
+    st.line_chart(line_data)
+
+    # Area Chart
+    st.markdown("### Area Chart")
+    st.area_chart(line_data)
+
+    # Scatter Plot
+    st.markdown("### Scatter Plot")
+    fig, ax = plt.subplots()
+    sns.scatterplot(data=data, x='Value1', y='Value2', hue='Category', ax=ax)
+    st.pyplot(fig)
+
+    # Histogram
+    st.markdown("### Histogram")
+    fig, ax = plt.subplots()
+    sns.histplot(data['Value3'], bins=20, kde=True, ax=ax)
+    st.pyplot(fig)
+
+    # Box Plot
+    st.markdown("### Box Plot")
+    fig, ax = plt.subplots()
+    sns.boxplot(data=data, x='Category', y='Value1', ax=ax)
+    st.pyplot(fig)
+
 # Footer
 st.markdown("---")
 st.markdown("© 2024 Cybersecurity Assessment Bot. All rights reserved. 🛡️")
+
