@@ -15,3 +15,4 @@ numpy
 pandas
 plotly
 vega_datasets
+geopandas

@@ -18,6 +18,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import altair as alt
 from vega_datasets import data
+import geopandas as gpd
 
 # Function to display the PDF of a given file
 def displayPDF(file):
